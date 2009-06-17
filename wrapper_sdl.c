@@ -1,3 +1,24 @@
+/* alleycat, an opensource IBM AlleyCat 1984 implementation.
+ *
+ * Dedicated to Kanna Ishihara.
+ *
+ * Copyright (C) 2009 Ronald Huizer
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
+ * MA 02110-1301, USA.
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <SDL/SDL.h>
@@ -99,6 +120,16 @@ void xSDL_EnableKeyRepeat(int delay, int interval)
 {
 	if (SDL_EnableKeyRepeat(delay, interval) == -1) {
 		fprintf(stderr, "SDL_EnableKeyRepeat failed: %s\n",
+		        SDL_GetError());
+		xSDL_Quit();
+		exit(EXIT_FAILURE);
+	}
+}
+
+void xSDL_OpenAudio(SDL_AudioSpec *desired, SDL_AudioSpec *obtained)
+{
+	if (SDL_OpenAudio(desired, obtained) == -1) {
+		fprintf(stderr, "SDL_OpenAudio failed: %s\n",
 		        SDL_GetError());
 		xSDL_Quit();
 		exit(EXIT_FAILURE);

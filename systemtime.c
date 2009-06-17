@@ -19,38 +19,28 @@
  * Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
  * MA 02110-1301, USA.
  */
-#ifndef __ALLEYCAT_CAT_H
-#define __ALLEYCAT_CAT_H
+#include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <sys/time.h>
 
-#include <SDL/SDL.h>
+/* IBM PC BIOS system timer ticks 18.204 times per second */
+#define FREQUENCY	18.204
 
-#define ALLEYCAT_CAT_DIRECTION_RIGHT 1
-#define ALLEYCAT_CAT_DIRECTION_LEFT -1
+/* Quick and dirty system timer emulation.
+ * Just convert POSIX gettimeofday() to IBM PC BIOS system time ticks.
+ * 
+ * XXX: should consider start of 24 hour uptime interval?
+ */
+uint32_t system_time_get(void)
+{
+	double result;
+	struct timeval tv;
 
-struct alleycat_cat {
-	SDL_Surface	*surface;
-	int		direction;
-	int		direction_old;
-	int		frame_index;
+	if (gettimeofday(&tv, NULL) == -1) {
+		perror("gettimeofday()");
+		exit(EXIT_FAILURE);
+	}
 
-	/* stores the background overwritten by this sprite */
-	int		background_dirty;
-	SDL_Surface	*background;
-	SDL_Rect	background_location;
-
-	/* dimensions of the sprite and location */
-	int		x;
-	int		y;
-	int		width;
-	int		height;
-
-	/* timers for periodic cat movement */
-	uint32_t	timer;
-	int		counter;
-};
-
-struct alleycat_cat *alleycat_cat_init(struct alleycat_cat *cat);
-void alleycat_cat_walk(struct alleycat_cat *cat, int direction);
-void alleycat_cat_destroy(struct alleycat_cat *cat);
-
-#endif
+	return (tv.tv_sec + tv.tv_usec / 1000000.0) * FREQUENCY;
+}

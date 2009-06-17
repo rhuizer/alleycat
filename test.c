@@ -1,3 +1,9 @@
+/* alleycat, an opensource IBM AlleyCat 1984 implementation.
+ *
+ * Dedicated to Kanna Ishihara.
+ *
+ * Copyright (C) 2009 Ronald Huizer
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -9,6 +15,7 @@
 #include "wrapper_sdl.h"
 
 #define ALLEYCAT_COMPANY_LOGO_REDRAW_EVENT	1
+#define ALLEYCAT_FRAME_UPDATE_EVENT		2
 
 /* Timer measured in IBM PC BIOS system time ticks */
 struct timer
@@ -21,6 +28,7 @@ struct timer
 
 /* Prototypes */
 void alleycat_draw_company_logo(SDL_Surface *screen);
+int alleycat_intro_decide_movement(struct alleycat_cat *cat);
 
 /* Global variables */
 
@@ -49,9 +57,17 @@ handleEvents(SDL_Surface *screen, struct alleycat_cat *cat)
 		xSDL_WaitEvent(&event);
 		switch(event.type) {
 		case SDL_USEREVENT:
-			if (event.user.code == ALLEYCAT_COMPANY_LOGO_REDRAW_EVENT) {
+			switch(event.user.code) {
+			case ALLEYCAT_COMPANY_LOGO_REDRAW_EVENT:
 				alleycat_draw_company_logo(screen);
 				SDL_Flip(screen);
+				break;
+			case ALLEYCAT_FRAME_UPDATE_EVENT:
+				alleycat_cat_walk(cat,
+					alleycat_intro_decide_movement(cat));
+				alleycat_cat_blit(cat, screen, cat->x, cat->y);
+				SDL_Flip(screen);
+				break;
 			}
 			break;
 		case SDL_KEYDOWN:
@@ -65,7 +81,12 @@ handleEvents(SDL_Surface *screen, struct alleycat_cat *cat)
 				break;
 			case SDLK_RIGHT:
 				alleycat_cat_walk(cat, 1);
-				alleycat_cat_blit(cat, screen, 0, 0);
+				alleycat_cat_blit(cat, screen, cat->x, cat->y);
+				SDL_Flip(screen);
+				break;
+			case SDLK_LEFT:
+				alleycat_cat_walk(cat, -1);
+				alleycat_cat_blit(cat, screen, cat->x, cat->y);
 				SDL_Flip(screen);
 				break;
 			default:
@@ -178,18 +199,12 @@ void alleycat_draw_sprite(SDL_Surface *screen, uint8_t *sprite, int w, int h, in
 	}
 }
 
-int alleycat_draw_struct_sprite(SDL_Surface *screen, struct sprite *sprite)
+/* XXX: no clipping nor overflow checking! */
+int alleycat_draw_struct_sprite(SDL_Surface *screen, struct sprite *sprite, int x, int y)
 {
 	int i, j;
 	uint8_t *data = sprite->data;
-	uint8_t *pixel = screen->pixels; // + map_cga_location(loc);
-	uint8_t *start = screen->pixels;
-
-	/* We do not clip, but only draw if there is space.  Clipping will be done in
-	 * SDL itself with SDL_BlitSurface().
-	 */
-	if (screen->w < sprite->width || screen->h < sprite->height)
-		return -1;
+	uint8_t *pixel = screen->pixels + x + y * screen->pitch;
 
 	for (i = 0; i < sprite->height; i++) {
 		for (j = 0; j < sprite->width / 4; j++) {
@@ -208,7 +223,6 @@ int alleycat_draw_struct_sprite(SDL_Surface *screen, struct sprite *sprite)
 			*pixel++ = cga_palette_1[(*data >> 4) & 0x3];
 		case 1:
 			*pixel++ = cga_palette_1[(*data >> 2) & 0x3];
-			printf("REM!\n");
 		}
 		pixel += screen->pitch -
 		         sprite->width * screen->format->BytesPerPixel;
@@ -323,19 +337,53 @@ int alleycat_register_timer(struct timer *timer)
 	              timer_handler, timer);
 }
 
+int alleycat_intro_decide_movement(struct alleycat_cat *cat)
+{
+	uint8_t byte;
+	uint32_t now;
+
+	if (cat->x <= 32)
+		return 1;
+
+	if (cat->x >= 288)
+		return -1;
+
+	/* Change movement after at least 18 ticks or 1 second */
+	if ( (now = system_time_get()) - cat->timer < 18)
+		return cat->direction;
+
+	cat->timer = now;
+
+	/* Determine randomly if we sit, or move left/right */
+	byte = rand_uint32_range(0, 255);
+	if (byte > 160)
+		return 0;
+
+	return (byte & 1) ? 1 : -1;
+}
+
+#ifdef WIN32
+int APIENTRY WinMain(HINSTANCE a, HINSTANCE b, LPSTR c, int d)
+#else
 int main(int argc, char **argv)
+#endif
 {
 	int i, bla;
 	SDL_Rect block;
 	SDL_Surface *screen;
 	uint8_t cats = 9;
 	struct alleycat_cat cat;
+	struct timer timer_update;
 	struct timer timer_company;
 	uint8_t score[7], hi_score[7];
 
+#ifdef WIN32
+	init(0, NULL);
+#else
 	init(argc, argv);
+#endif
 	
-	screen = xSDL_SetVideoMode(320, 200, 8, SDL_HWSURFACE | SDL_HWPALETTE);
+	screen = xSDL_SetVideoMode(320, 200, 8, SDL_HWSURFACE | SDL_HWPALETTE | SDL_DOUBLEBUF);
 	SDL_SetColors(screen, cga_palette, 0, 16);
 
 	memset(score, 0, sizeof(score));
@@ -385,9 +433,11 @@ int main(int argc, char **argv)
 
 	alleycat_draw_sprite(screen, sprite_letter_K, 0x02, 0x08, 6402);
 
-	alleycat_draw_trashcan(screen, 0x15F0);
+	alleycat_draw_trashcan(screen, 0x15E6);
+	alleycat_draw_trashcan(screen, 0x15EE);
+	alleycat_draw_trashcan(screen, 0x1738);
 	alleycat_draw_trashcan(screen, 0x1748);
-	alleycat_draw_trashcan(screen, 0x1622);
+	alleycat_draw_trashcan(screen, 0x1624);
 
 	alleycat_draw_sprite(screen, sprite, 0x0B * 2, 0x1D, 189);
 	alleycat_draw_sprite(screen, sprite2, 0x0E * 2, 0x16, 1694);
@@ -403,8 +453,9 @@ int main(int argc, char **argv)
 	alleycat_draw_cats(screen, cats, 0x1260);
 
 //	alleycat_draw_overlay(screen, sprite_cat, 0x02 * 2, 0x09, 1694);
-//	alleycat_draw_sprite(screen, sprite_cat_walk_right1, 0x03 * 2, 0x0b, 1694);
+//	alleycat_draw_sprite(screen, unknown1, 0x03 * 2, 0x0e, 0x1c20);
 //	alleycat_draw_struct_sprite(screen, &sprite_cat_walk_right1, 1694);
+//
 
 	if (alleycat_cat_init(&cat) == NULL) {
 		printf("%s\n", SDL_GetError());
@@ -412,18 +463,22 @@ int main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
+	/* Intro coords */
+	cat.x = -10;
+	cat.y = 96;
+
 	SDL_UnlockSurface(screen);
-
-	alleycat_cat_walk(&cat, 1);
-	alleycat_cat_blit(&cat, screen, 30, 30);
-
-	SDL_Flip(screen);
 
 	/* timer tests */
 	timer_company.type = ALLEYCAT_COMPANY_LOGO_REDRAW_EVENT;
 	timer_company.expires = 32;
 	timer_company.cookie = NULL;
 	alleycat_register_timer(&timer_company);
+
+	timer_update.type = ALLEYCAT_FRAME_UPDATE_EVENT;
+	timer_update.expires = 1;
+	timer_update.cookie = NULL;
+	alleycat_register_timer(&timer_update);
 
 	PCS_Init(0);
 

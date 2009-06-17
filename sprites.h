@@ -63,18 +63,18 @@ extern struct sprite sprite_cat_walk_right3;
 extern struct sprite sprite_cat_walk_right4;
 extern struct sprite sprite_cat_walk_right5;
 extern struct sprite sprite_cat_walk_right6;
-extern unsigned char sprite_cat_walk_left1[];
-extern unsigned char sprite_cat_walk_left2[];
-extern unsigned char sprite_cat_walk_left4[];
-extern unsigned char sprite_cat_walk_left3[];
-extern unsigned char sprite_cat_walk_left5[];
-extern unsigned char sprite_cat_walk_left6[];
-extern unsigned char sprite_cat_head_front1[];
-extern unsigned char sprite_cat_head_front2[];
-extern unsigned char sprite_cat_head_back1[];
-extern unsigned char sprite_cat_body_front1[];
-extern unsigned char sprite_cat_body_front2[];
+extern struct sprite sprite_cat_walk_left1;
+extern struct sprite sprite_cat_walk_left2;
+extern struct sprite sprite_cat_walk_left3;
+extern struct sprite sprite_cat_walk_left4;
+extern struct sprite sprite_cat_walk_left5;
+extern struct sprite sprite_cat_walk_left6;
 
+extern struct sprite sprite_cat_head_front1;
+extern struct sprite sprite_cat_head_front2;
+extern struct sprite sprite_cat_head_back;
+extern struct sprite sprite_cat_body1;
+extern struct sprite sprite_cat_body2;
 extern struct sprite sprite_cat_body3;
 
 #endif
